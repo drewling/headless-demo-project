@@ -1,33 +1,28 @@
 #!/usr/bin/env sh
 
-set -e
+# Wait until MySQL is ready
+until mysql -h db-service -u"$WORDPRESS_DB_USER" -p"$WORDPRESS_DB_PASSWORD" -e "SELECT 1;" 
+do
+  echo "Waiting for MySQL..."
+  sleep 1
+done
 
-mysql_ready='nc -z db-headless 3306'
-
-if ! $mysql_ready
-then
-    printf 'Waiting for MySQL.'
-    while ! $mysql_ready
-    do
-        printf '.'
-        sleep 1
-    done
-    echo
-fi
-
+# Check if WP is installed
 if wp core is-installed
 then
     echo "WordPress is already installed, exiting."
     exit
 fi
 
+# Downloading and installing WP
 wp core download --force
 
 [ -f wp-config.php ] || wp config create \
     --dbhost="$WORDPRESS_DB_HOST" \
     --dbname="$WORDPRESS_DB_NAME" \
     --dbuser="$WORDPRESS_DB_USER" \
-    --dbpass="$WORDPRESS_DB_PASSWORD"
+    --dbpass="$WORDPRESS_DB_PASSWORD" \
+    --dbprefix="$WORDPRESS_DB_PREFIX"
 
 wp core install \
     --url="$WORDPRESS_URL" \
@@ -37,23 +32,20 @@ wp core install \
     --admin_email="$WORDPRESS_ADMIN_EMAIL" \
     --skip-email
 
-wp option update blogdescription "$WORDPRESS_DESCRIPTION"
-wp rewrite structure "$WORDPRESS_PERMALINK_STRUCTURE"
-
-wp theme activate drewl
-wp theme delete twentytwenty twentytwentyone twentytwentytwo
-
+# Manage required plugins
 wp plugin delete akismet hello
+
 wp plugin install --activate --force \
     advanced-custom-fields \
-    custom-post-type-ui \
-    wordpress-importer \
-    /var/www/plugins/*.zip
+    wordpress-seo \
 
-wp term update category 1 --name="Sample Category"
-wp post delete 1 2
+# Theme settings
+wp theme activate $THEME_NAME
+wp theme delete twentytwenty twentytwentyone twentytwentytwo twentytwentythree twentytwentyfour
 
-wp import /var/www/export.wordpress.xml --authors=skip --skip=attachment
+wp option update siteurl "$WORDPRESS_URL"
+wp option update home "$WORDPRESS_HOME"
+wp rewrite structure "$WORDPRESS_PERMALINK_STRUCTURE"
+wp rewrite flush
 
-
-echo "Great. You can now log into WordPress at: $WORDPRESS_URL/wp-admin ($WORDPRESS_ADMIN_USER/$WORDPRESS_ADMIN_PASSWORD)"
+echo "Install done. You can now log into WordPress at: $WORDPRESS_URL/wp-admin ($WORDPRESS_ADMIN_USER/$WORDPRESS_ADMIN_PASSWORD)"

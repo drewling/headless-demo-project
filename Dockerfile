@@ -5,7 +5,7 @@ RUN sed -i 's/80/8080/' /etc/apache2/ports.conf /etc/apache2/sites-enabled/000-d
 
 # install_wordpress.sh & misc. dependencies
 RUN apt-get update
-RUN apt-get install -yq mariadb-client netcat-traditional sudo less git unzip
+RUN apt-get install -yq mariadb-client netcat-traditional sudo less git unzip default-mysql-client
 
 # wp-cli
 RUN curl -sL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o wp; \
